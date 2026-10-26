@@ -4,7 +4,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { useAuthStore, canWrite } from "../../stores/auth";
+import { useAuthStore, canWrite, isAdmin } from "../../stores/auth";
 import { useGalStore } from "../../stores/gal";
 import { formatCurrency, formatDate, logAudit, messaggioErrore } from "../../lib/utils";
 import { readFatturaXml } from "../../lib/fatturaPA";
@@ -267,17 +267,21 @@ export default function GiustificativiList() {
 
   async function handleDeleteGiust(g: Giustificativo) {
     if (!currentGal || !user) return;
-    // Elimina righe imputazione, documenti storage e record
-    await supabase.from("gal_righe_imputazione").delete().eq("giustificativo_id", g.id);
-    await supabase.from("gal_pagamenti_giust").delete().eq("giustificativo_id", g.id);
-    // Elimina documenti da storage
-    const { data: docs } = await supabase.from("gal_documenti_giustificativo").select("storage_path").eq("giustificativo_id", g.id);
+    // Percorsi degli allegati, da leggere prima che le righe spariscano
+    const { data: docs, error: errDocs } = await supabase.from("gal_documenti_giustificativo").select("storage_path").eq("giustificativo_id", g.id);
+    if (errDocs) { toast.error(messaggioErrore(errDocs)); return; }
+    // Prima il giustificativo: imputazioni, pagamenti e documenti seguono da soli (ON DELETE CASCADE).
+    // Se il database non elimina nulla (permessi) non si tocca nient'altro.
+    const { data: eliminati, error } = await supabase.from("gal_giustificativi").delete().eq("id", g.id).select("id");
+    if (error) { toast.error(messaggioErrore(error)); return; }
+    if (!eliminati || eliminati.length === 0) {
+      toast.error("Eliminazione non riuscita: solo l'amministratore può eliminare definitivamente un giustificativo.");
+      setDeleteConfirm(null);
+      return;
+    }
     if (docs && docs.length > 0) {
       await supabase.storage.from("documenti_gal").remove(docs.map((d: { storage_path: string }) => d.storage_path));
-      await supabase.from("gal_documenti_giustificativo").delete().eq("giustificativo_id", g.id);
     }
-    const { error } = await supabase.from("gal_giustificativi").delete().eq("id", g.id);
-    if (error) { toast.error(messaggioErrore(error)); return; }
     await logAudit({ galId: currentGal.id, userId: user.id, username: user.nome_completo, azione: "DELETE", entita: "giustificativo", descrizione: `${g.numero_doc} eliminato definitivamente` });
     toast.success("Giustificativo eliminato definitivamente");
     setDeleteConfirm(null); load();
@@ -295,7 +299,7 @@ export default function GiustificativiList() {
     { key: "stato", label: "Stato", render: (r) => (
       <div className="flex items-center gap-1">
         <span className={`badge ${STATO_COLORS[r.stato] ?? "bg-gray-100"}`}>{r.stato.replace(/_/g, " ")}</span>
-        {r.stato === "annullata" && write && (
+        {r.stato === "annullata" && isAdmin(user) && (
           <button className="p-1 text-red-500 hover:text-red-700" title="Elimina definitivamente" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(r); }}>
             <Trash2 size={14} />
           </button>

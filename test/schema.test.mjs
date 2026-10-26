@@ -75,6 +75,13 @@ ok("account non attivo non si auto-attiva", !!(await come(estraneo.id, () => pro
 ok("anonimo senza accesso", !!(await prova(async () => { await db.exec("SET ROLE anon"); try { await db.query("SELECT * FROM gal_bandi"); } finally { await db.exec("RESET ROLE"); } })));
 ok("operatore legge", (await come(oper.id, () => q("SELECT * FROM gal_bandi"))).length === 1);
 ok("operatore non elimina un bando", (await come(oper.id, () => q("DELETE FROM gal_bandi RETURNING id"))).length === 0);
+{
+  const [g] = await come(admin.id, () => q("INSERT INTO gal_giustificativi (numero_doc, data_doc, stato) VALUES ('5/001', '2026-02-20', 'annullata') RETURNING id"));
+  await come(admin.id, () => db.exec(`INSERT INTO gal_righe_imputazione (giustificativo_id) VALUES ('${g.id}')`));
+  ok("operatore non elimina un giustificativo", (await come(oper.id, () => q("DELETE FROM gal_giustificativi WHERE id=$1 RETURNING id", [g.id]))).length === 0);
+  ok("admin elimina un giustificativo annullato con le sue righe", (await come(admin.id, () => q("DELETE FROM gal_giustificativi WHERE id=$1 RETURNING id", [g.id]))).length === 1
+     && (await q("SELECT count(*)::int AS n FROM gal_righe_imputazione WHERE giustificativo_id=$1", [g.id]))[0].n === 0);
+}
 ok("operatore non si promuove admin", !!(await come(oper.id, () => prova(() => db.exec(`UPDATE gal_profili SET ruolo='admin' WHERE id='${oper.id}'`)))));
 ok("operatore modifica il proprio nome", !(await come(oper.id, () => prova(() => db.exec(`UPDATE gal_profili SET nome_completo='Mario' WHERE id='${oper.id}'`)))));
 ok("operatore non modifica il GAL", (await come(oper.id, () => q("UPDATE gal_gal SET nome='X' RETURNING id"))).length === 0);
