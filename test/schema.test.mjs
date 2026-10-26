@@ -50,6 +50,20 @@ ok("profilo creato disattivato", (await q("SELECT attivo, ruolo FROM gal_profili
 ok("nomina amministratore", (await q("SELECT gal_nomina_amministratore('ADMIN@gal.it') r"))[0].r.startsWith("Amministratore"));
 await db.exec(`UPDATE gal_profili SET ruolo='operatore', attivo=true WHERE id='${oper.id}'`);
 
+console.log("Valori scritti a mano nel Table Editor");
+{
+  const [v] = await q("INSERT INTO auth.users (email) VALUES ('vanessa@gal.it') RETURNING id");
+  await db.exec(`UPDATE gal_profili SET nome_completo='Vanessa', ruolo='Operatore', funzione='Segreteria', attivo=true WHERE id='${v.id}'`);
+  const [p] = await q("SELECT ruolo, funzione, email FROM gal_profili WHERE id=$1", [v.id]);
+  ok("'Segreteria' e 'Operatore' convertiti", p.ruolo === "operatore" && p.funzione === "segreteria", p);
+  await db.exec(`UPDATE gal_profili SET funzione='Direttore Tecnico' WHERE id='${v.id}'`);
+  ok("'Direttore Tecnico' convertito", (await q("SELECT funzione FROM gal_profili WHERE id=$1", [v.id]))[0].funzione === "direttore_tecnico");
+  await db.exec(`UPDATE gal_profili SET funzione='RAF', email=NULL WHERE id='${v.id}'`);
+  const [p2] = await q("SELECT funzione, email FROM gal_profili WHERE id=$1", [v.id]);
+  ok("'RAF' convertito ed e-mail recuperata dall'account", p2.funzione === "raf" && p2.email === "vanessa@gal.it", p2);
+  ok("valore sconosciuto ancora rifiutato", !!(await prova(() => db.exec(`UPDATE gal_profili SET funzione='Cuoco' WHERE id='${v.id}'`))));
+}
+
 console.log("Regole di accesso");
 await come(admin.id, () => db.exec("INSERT INTO gal_bandi (titolo) VALUES ('Bando prova')"));
 ok("admin inserisce senza gal_id (predefinito)", (await q("SELECT gal_id IS NOT NULL g FROM gal_bandi"))[0].g);
