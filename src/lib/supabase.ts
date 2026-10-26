@@ -10,8 +10,10 @@ import { createClient } from "@supabase/supabase-js";
  * Nel browser si usa SOLO la chiave pubblica "anon": la sicurezza dei dati è
  * garantita dalle regole Row Level Security del database (supabase/schema.sql).
  */
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+// Spazi e "/" finali copiati per errore nelle variabili di Cloudflare rendono il server
+// irraggiungibile: si tolgono qui.
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\s+/g, "").replace(/\/+$/, "");
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.replace(/\s+/g, "");
 
 export const configurazioneMancante = !supabaseUrl || !supabaseAnonKey;
 
