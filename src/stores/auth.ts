@@ -53,10 +53,16 @@ async function caricaProfilo(id: string, email: string): Promise<User> {
 }
 
 function messaggioAccesso(msg: string): string {
+  // Il testo originale resta nella console del browser (F12) per chi installa il GAL
+  console.warn("Accesso Supabase:", msg);
   if (/invalid login credentials/i.test(msg)) return "E-mail o password non corretti.";
   if (/email not confirmed/i.test(msg)) return "E-mail non ancora confermata: apri il link ricevuto per e-mail.";
   if (/rate limit|too many/i.test(msg)) return "Troppi tentativi. Attendi qualche minuto e riprova.";
   if (/fetch|network/i.test(msg)) return "Server non raggiungibile. Controlla la connessione.";
+  if (/api key|apikey|jwt|unauthorized/i.test(msg))
+    return "Sito non collegato correttamente al database del GAL: verificare le variabili VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY su Cloudflare.";
+  if (/database error|schema/i.test(msg))
+    return "Account non valido nel database: ricrearlo da Supabase con Invite user o Add user.";
   return "Accesso non riuscito. Riprova.";
 }
 
