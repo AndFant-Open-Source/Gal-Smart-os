@@ -1,0 +1,38 @@
+# Variabili d'ambiente — MAI caricare su GitHub
+.env
+.env.local
+.env.production
+.env.development
+.env.staging
+
+# Dipendenze e build
+node_modules/
+dist/
+dist-ssr/
+*.tsbuildinfo
+.vite/
+
+# Log
+*.log
+npm-debug.log*
+
+# Editor e sistema operativo
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Configurazione locale dell'assistente di sviluppo (non fa parte del software)
+.claude/
+
+# Archivi di backup e esportazioni locali (contengono dati del GAL)
+*.zip
+*.xlsx
+
+# File locali della CLI di Supabase
+supabase/.temp/
+
+# Configurazioni locali
+*.local

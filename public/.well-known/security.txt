@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Segnalazione di vulnerabilità di sicurezza (RFC 9116, https://securitytxt.org)
+# Linee guida AgID su acquisizione e riuso del software, Allegato A §A.10
+#
+# >>> DA COMPLETARE prima della pubblicazione: indirizzo e-mail per le segnalazioni
+# >>> di sicurezza, indirizzo del sito e data di scadenza (massimo un anno).
+
+Contact: mailto:sicurezza@example.invalid
+Expires: 2027-10-26T00:00:00.000Z
+Preferred-Languages: it, en
+Canonical: https://example.invalid/.well-known/security.txt
+Policy: https://github.com/AndFant-Open-Source/Gal-Smart-os/blob/main/SECURITY.md

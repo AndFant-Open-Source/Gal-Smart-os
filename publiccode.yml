@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: CC-BY-4.0
+# Scheda del software per il catalogo Developers Italia (https://developers.italia.it)
+# Standard: https://github.com/italia/publiccode.yml — Linee guida AgID, Allegato A §A.11
+#
+# >>> DA COMPLETARE prima della registrazione: i campi marcati [DA INDICARE]
+# >>> Validatore online: https://publiccode-editor.developers.italia.it
+
+publiccodeYmlVersion: "0.4"
+
+name: GAL OS
+url: "https://github.com/AndFant-Open-Source/Gal-Smart-os"
+softwareVersion: "5.0.0"
+releaseDate: "2026-10-26"
+platforms:
+  - web
+
+categories:
+  - accounting
+  - project-management
+  - procurement
+  - document-management
+
+developmentStatus: beta
+softwareType: "standalone/web"
+
+intendedAudience:
+  countries:
+    - it
+  scope:
+    - government
+    - agriculture
+
+description:
+  it:
+    localisedName: GAL OS - edizione per singolo GAL
+    genericName: Gestionale per Gruppi di Azione Locale
+    shortDescription: >-
+      Gestionale per GAL: scadenze, pagamenti con CUP/CIG e F24, cassa,
+      bandi, organi sociali, rendicontazione. Un database per ogni ente.
+    longDescription: >-
+      GAL OS è un'applicazione web per la gestione amministrativa dei Gruppi
+      di Azione Locale (GAL) che attuano la strategia LEADER. Gestisce l'agenda
+      delle scadenze di Segreteria, Direttore Tecnico e RAF con pratiche e check
+      list; lo scadenzario dei pagamenti con lettura della fattura elettronica
+      XML, verifica obbligatoria di CUP e CIG, registrazione dei bonifici,
+      creazione automatica delle scadenze F24 per ritenute e IVA in split
+      payment e scheda per l'emissione del mandato di pagamento; l'analisi del
+      cash flow; bandi e domande di sostegno; libro soci, sedute e delibere;
+      giustificativi di spesa, previsione e quadri di rendicontazione;
+      procedure di acquisto e contratti; il registro di catalogazione
+      dell'archivio. Ogni GAL ha la propria installazione con un proprio
+      database Supabase: nessun utente può vedere o gestire i dati di un altro
+      ente. Le regole di sicurezza sono applicate dal database (Row Level
+      Security) e ogni operazione resta nel registro attività. Tutti i dati si
+      esportano in Excel con tabelle strutturate.
+    documentation: "https://github.com/AndFant-Open-Source/Gal-Smart-os/tree/main/docs"
+    features:
+      - Agenda scadenze per funzione con check list e ricorrenze
+      - Scadenzario pagamenti con verifica CUP/CIG sulla fattura elettronica
+      - F24 automatici entro il 16 del mese successivo
+      - Scheda per il mandato di pagamento in PDF
+      - Cash flow con previsione e avviso di tensione di cassa
+      - Bandi, organi sociali, rendicontazione, procedure di acquisto
+      - Un database separato per ogni ente, regole applicate dal database
+      - Esportazione completa in Excel e backup ZIP
+
+legal:
+  license: AGPL-3.0-or-later
+  mainCopyrightOwner: "Andrea Fantini"
+  repoOwner: "Andrea Fantini"
+
+maintenance:
+  type: "internal"
+  contacts:
+    - name: "[REFERENTE DA INDICARE]"
+      email: "[E-MAIL DA INDICARE]"
+
+localisation:
+  localisationReady: false
+  availableLanguages:
+    - it
+
+dependsOn:
+  open:
+    - name: Supabase
+      optional: false
+    - name: PostgreSQL
+      versionMin: "15"
+      optional: false
+
+it:
+  countryExtensionVersion: "1.0"
+  conforme:
+    lineeGuidaDesign: false
+    modelloInteroperabilita: false
+    misureMinimeSicurezza: false
+    gdpr: false
+  piattaforme:
+    spid: false
+    cie: false
+    anpr: false
+    pagopa: false
+  # Nessun blocco "riuso.codiceIPA": il titolare non è una pubblica amministrazione

@@ -1,0 +1,30 @@
+# Licenze e titolarità dei file del repository, secondo la specifica REUSE 3
+# (https://reuse.software), raccomandata dalle Linee guida AgID su acquisizione
+# e riuso del software, Allegato A §A.4.
+#
+# Titolare dei diritti: Andrea Fantini.
+# Il software è rilasciato sotto AGPL-3.0-or-later con i termini aggiuntivi
+# della sezione 7 descritti in TERMINI-AGGIUNTIVI.md.
+
+version = 1
+SPDX-PackageName = "GAL OS"
+SPDX-PackageSupplier = "Person: Andrea Fantini"
+SPDX-PackageDownloadLocation = "https://github.com/AndFant-Open-Source/Gal-Smart-os"
+SPDX-PackageComment = "AGPL-3.0-or-later con termini aggiuntivi ai sensi della sezione 7: vedi TERMINI-AGGIUNTIVI.md"
+
+# Tutto il software: AGPL-3.0-or-later (+ termini aggiuntivi, TERMINI-AGGIUNTIVI.md)
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Andrea Fantini"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# Documentazione: CC-BY-4.0 (Linee guida AgID §3.5.3)
+[[annotations]]
+path = ["docs/**", "README.md", "CLAUDE.md", "SECURITY.md", "CONTRIBUTING.md", "CHANGELOG.md", "TERMINI-AGGIUNTIVI.md", "supabase/README.md", "publiccode.yml"]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Andrea Fantini"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+# Nota: LICENSE e la cartella LICENSES/ contengono i testi integrali delle licenze
+# e sono esclusi per definizione dalla specifica REUSE.

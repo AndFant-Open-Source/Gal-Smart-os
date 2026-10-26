@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Andrea Fantini
+# Termini aggiuntivi (AGPL-3.0, sezione 7): vedi TERMINI-AGGIUNTIVI.md
+#
+# Intestazioni di sicurezza applicate da Cloudflare Pages a ogni risposta.
+# - CSP: il browser carica codice solo da questo sito e parla solo con Supabase
+# - niente incorporamento in altri siti (clickjacking), solo HTTPS, niente sniffing dei tipi
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src 'self' blob: https://*.supabase.co; worker-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+# File con nome "impronta" (cambiano nome a ogni versione): memorizzabili a lungo
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

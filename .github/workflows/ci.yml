@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Andrea Fantini
+# Controllo automatico a ogni modifica (Linee guida AgID, Allegato A §A.7):
+# tipi TypeScript, compilazione e prova dello schema del database con le regole di sicurezza.
+name: Controllo
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  controllo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Controllo dei tipi
+        run: npm run typecheck
+      - name: Prova del database (schema, RLS, regole)
+        run: npm run test:db
+      - name: Compilazione
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://esempio.supabase.co
+          VITE_SUPABASE_ANON_KEY: chiave-di-prova
+          VITE_NOME_ENTE: GAL di prova
