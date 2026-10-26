@@ -92,7 +92,7 @@ Prima del primo avvio va eseguito lo schema del database: procedura completa in
 
 ## Stato del progetto
 
-**Beta** — derivato da GAL OS 4.0 (versione multi-GAL), in uso presso [ENTI DA INDICARE].
+**Beta** — derivato da GAL OS 4.0 (versione multi-GAL), 
 
 Limitazioni note:
 
