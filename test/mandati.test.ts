@@ -13,10 +13,21 @@ import { calcolaCompenso, schedaNettoCompenso, schedaF24Compenso } from "../src/
 import { ibanValido, controllaScheda } from "../src/lib/mandati/controlli";
 import { generaMandatoDocx } from "../src/lib/mandati/generaMandato";
 import type { Ente } from "../src/lib/mandati/tipi";
+import { scadenzaF24 } from "../src/lib/scadenze";
 
 const KIT = new URL("../docs/mandati/", import.meta.url);
 const kit = (p: string) => new URL(p, KIT);
 const MODELLO = new URL("../public/modelli/modello_mandato.docx", import.meta.url);
+
+// Scadenza F24 (non richiede il kit): 16 del mese dopo, agosto al 20, festivi e fine settimana slittano
+{
+  const casi: [string, string][] = [["2026-10-29", "2026-11-16"], ["2026-07-10", "2026-08-20"],
+    ["2028-03-10", "2028-04-18"], ["2027-04-02", "2027-05-17"]];
+  for (const [pag, atteso] of casi) {
+    if (scadenzaF24(pag) !== atteso) { console.log(`KO scadenza F24 per pagamento ${pag}: ${scadenzaF24(pag)} atteso ${atteso}`); process.exit(1); }
+  }
+  console.log("Scadenze F24 (festività comprese): ok");
+}
 
 if (!existsSync(kit("esempi/attesi_compensi_ott_2026.json")) || !existsSync(kit("ente_collaudo.json"))) {
   // Il kit (con dati reali) resta fuori dal repository pubblico: senza kit il collaudo si salta

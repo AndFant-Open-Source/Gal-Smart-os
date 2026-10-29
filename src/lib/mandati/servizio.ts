@@ -232,3 +232,69 @@ export async function mandatiGiaEmessi(c: { scadenzaId?: string | null; giustifi
   if (error) throw error;
   return (data ?? []) as Pick<Mandato, "id" | "numero" | "anno" | "stato" | "beneficiario_nome">[];
 }
+
+// ─── Conferma, archivio e generazione in blocco ──────────────────
+
+/**
+ * Conferma (verificato): genera il Word senza "BOZZA", lo archivia e lo collega al giustificativo.
+ * Va chiamata solo dopo la conferma esplicita dell'utente.
+ */
+export async function archiviaEVerifica(m: Mandato, ente: Ente, nomeUtente: string): Promise<{ mandato: Mandato; word: Blob; avviso?: string }> {
+  const verificato: Mandato = { ...m, stato: "verificato" };
+  const word = await generaWord(verificato, ente);
+  const path = `mandati/${m.anno}/${nomeFileMandato(verificato)}`;
+  const up = await supabase.storage.from(BUCKET_DOCUMENTI).upload(path, word, { upsert: true, contentType: word.type });
+  if (up.error) throw up.error;
+  const { data, error } = await supabase.from("gal_mandati")
+    .update({ stato: "verificato", docx_path: path, verificato_da: nomeUtente, verificato_il: new Date().toISOString() })
+    .eq("id", m.id).select("*").single();
+  if (error || !data) throw error ?? new Error("Mandato non aggiornato");
+  let avviso: string | undefined;
+  if (m.giustificativo_id) {
+    // Il Word va tra i documenti del giustificativo (rendicontazione), una sola volta
+    const { data: gia, error: errDoc } = await supabase.from("gal_documenti_giustificativo").select("id")
+      .eq("giustificativo_id", m.giustificativo_id).eq("storage_path", path).limit(1);
+    const { error: errIns } = errDoc || gia?.length ? { error: errDoc } : await supabase.from("gal_documenti_giustificativo").insert({
+      gal_id: m.gal_id, giustificativo_id: m.giustificativo_id, tipo: "mandato_pagamento",
+      nome_file: nomeFileMandato(verificato), storage_path: path, dimensione: word.size, note: `Mandato n. ${numeroStampa(m)}`,
+    });
+    if (errIns) avviso = "Mandato verificato, ma non collegato ai documenti del giustificativo";
+  }
+  return { mandato: data as Mandato, word, avviso };
+}
+
+/** Un unico file ZIP con il Word di ogni mandato (avanzamento: fatti, totale) */
+export async function zipWord(mandati: Mandato[], ente: Ente, avanzamento?: (fatti: number, totale: number) => void): Promise<Blob> {
+  const { default: JSZip } = await import("jszip");
+  const zip = new JSZip();
+  for (let i = 0; i < mandati.length; i++) {
+    zip.file(nomeFileMandato(mandati[i]), await generaWord(mandati[i], ente));
+    avanzamento?.(i + 1, mandati.length);
+  }
+  return zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+}
+
+// ─── Compensi (gettoni CdA, commissioni, revisori) ───────────────
+
+/** Documenti che il fascicolo deve contenere per pagare un compenso (Circ. Min. Lavoro 2/2009) */
+export const NOTA_ALLEGATI_COMPENSO =
+  "Verificare nel fascicolo: atto di nomina/incarico, delibera che fissa il compenso, verbali o fogli presenza delle sedute (Circ. Min. Lavoro n. 2/2009).";
+
+/** CF e IBAN dell'ultimo mandato di compenso intestato alla stessa persona (per non riscriverli ogni mese) */
+export async function ultimoPercettore(nome: string): Promise<{ cf?: string; iban?: string } | null> {
+  const { data, error } = await supabase.from("gal_mandati").select("scheda")
+    .eq("tipo_documento", "distinta_compenso").ilike("beneficiario_nome", nome.trim())
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (error) { console.error(error); return null; }
+  const s = (data as { scheda: SchedaMandato } | null)?.scheda;
+  return s ? { cf: s.beneficiario_cf, iban: s.beneficiario_iban } : null;
+}
+
+/** Mandati di compenso non annullati già emessi alla stessa persona per lo stesso periodo */
+export async function compensiGiaEmessi(nome: string, periodo: string): Promise<Pick<Mandato, "id" | "numero" | "anno">[]> {
+  const { data, error } = await supabase.from("gal_mandati").select("id, numero, anno")
+    .eq("tipo_documento", "distinta_compenso").neq("stato", "annullato")
+    .ilike("beneficiario_nome", nome.trim()).ilike("scheda->>causale", `%competenza ${periodo.trim()}%`);
+  if (error) { console.error(error); return []; }
+  return (data ?? []) as Pick<Mandato, "id" | "numero" | "anno">[];
+}

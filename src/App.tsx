@@ -60,6 +60,7 @@ const ScadenzaDetail = lazy(() => import("./pages/scadenzario/ScadenzaDetail"));
 const MandatiList = lazy(() => import("./pages/mandati/MandatiList"));
 const MandatoScheda = lazy(() => import("./pages/mandati/MandatoScheda"));
 const ImpostazioniMandati = lazy(() => import("./pages/mandati/ImpostazioniMandati"));
+const CompensiMandati = lazy(() => import("./pages/mandati/CompensiMandati"));
 const CashFlowPage = lazy(() => import("./pages/cashflow/CashFlowPage"));
 const EsportaExcel = lazy(() => import("./pages/EsportaExcel"));
 
@@ -178,6 +179,7 @@ export default function App() {
                       <Route path="/mandati" element={<MandatiList />} />
                       <Route path="/mandati/nuovo" element={<MandatoScheda />} />
                       <Route path="/mandati/impostazioni" element={<ImpostazioniMandati />} />
+                      <Route path="/mandati/compensi" element={<CompensiMandati />} />
                       <Route path="/mandati/:id" element={<MandatoScheda />} />
                       <Route path="/cash-flow" element={<CashFlowPage />} />
                       <Route path="/esporta-excel" element={<EsportaExcel />} />

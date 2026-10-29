@@ -34,10 +34,28 @@ export function etichettaScadenza(dataISO: string): { testo: string; classe: str
   return { testo: `Tra ${g} gg`, classe: "text-gray-500" };
 }
 
+/** Domenica di Pasqua (calendario gregoriano, algoritmo di Meeus/Jones/Butcher) */
+function pasqua(anno: number): Date {
+  const a = anno % 19, b = Math.floor(anno / 100), c = anno % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mese = Math.floor((h + l - 7 * m + 114) / 31);
+  return new Date(anno, mese - 1, ((h + l - 7 * m + 114) % 31) + 1);
+}
+
+/** Festività nazionali (non le feste patronali): anche il 4 ottobre dal 2026 (L. 151/2025) */
+export function festivoNazionale(d: Date): boolean {
+  const mmdd = format(d, "MM-dd");
+  const fisse = ["01-01", "01-06", "04-25", "05-01", "06-02", "08-15", "11-01", "12-08", "12-25", "12-26"];
+  if (fisse.includes(mmdd) || (mmdd === "10-04" && d.getFullYear() >= 2026)) return true;
+  return toISO(d) === toISO(addDays(pasqua(d.getFullYear()), 1)); // lunedì dell'Angelo
+}
+
 /**
  * Scadenza di versamento delle ritenute con F24:
  * entro il giorno 16 del mese successivo a quello del pagamento.
- * - Se il 16 cade di sabato o domenica slitta al lunedì successivo.
+ * - Se il 16 cade di sabato, domenica o in una festività nazionale slitta al primo giorno lavorativo.
  * - Per il mese di agosto si applica la proroga di Ferragosto al giorno 20.
  */
 export function scadenzaF24(dataPagamentoISO: string): string {
@@ -45,9 +63,7 @@ export function scadenzaF24(dataPagamentoISO: string): string {
   const meseSucc = addMonths(new Date(pag.getFullYear(), pag.getMonth(), 1), 1);
   const giorno = meseSucc.getMonth() === 7 ? 20 : 16; // agosto → 20
   let d = new Date(meseSucc.getFullYear(), meseSucc.getMonth(), giorno);
-  const dow = getDay(d);
-  if (dow === 6) d = addDays(d, 2);
-  else if (dow === 0) d = addDays(d, 1);
+  while (getDay(d) === 0 || getDay(d) === 6 || festivoNazionale(d)) d = addDays(d, 1);
   return toISO(d);
 }
 

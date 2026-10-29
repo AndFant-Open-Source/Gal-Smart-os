@@ -19,13 +19,12 @@ import { useAuthStore, canWrite, isAdmin } from "../../stores/auth";
 import { useGalStore } from "../../stores/gal";
 import { formatCurrency, formatDate, logAudit, messaggioErrore } from "../../lib/utils";
 import { oggiISO } from "../../lib/scadenze";
-import { BUCKET_DOCUMENTI } from "../../constants";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { importoInLettere, r2 } from "../../lib/mandati/importoInLettere";
 import { ibanValido, formattaIban } from "../../lib/mandati/controlli";
 import type { SchedaMandato, VoceMandato } from "../../lib/mandati/tipi";
 import {
-  STATO_MANDATO_COLORS, STATO_MANDATO_LABELS, caricaEnte, caricaImpostazioni, generaWord, isFileFattura,
+  STATO_MANDATO_COLORS, STATO_MANDATO_LABELS, archiviaEVerifica, caricaEnte, caricaImpostazioni, generaWord, isFileFattura,
   mandatiGiaEmessi, nomeFileMandato, numeroStampa, scaricaDaArchivio, scaricaFile, schedaDaGiustificativo,
   schedaDaScadenza, schedaVuota, schedeDaFileFattura, sommaVoci, uniscinote,
 } from "../../lib/mandati/servizio";
@@ -57,6 +56,7 @@ export default function MandatoScheda() {
   const [origine, setOrigine] = useState("");
   const [doppioni, setDoppioni] = useState<Doppione[]>([]);
   const [delibere, setDelibere] = useState<string[]>([]);
+  const [collegati, setCollegati] = useState<Pick<Mandato, "id" | "numero" | "anno" | "modalita" | "stato">[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [conferma, setConferma] = useState<Conferma>(null);
@@ -107,6 +107,11 @@ export default function MandatoScheda() {
     setNumeroManuale(m.numero_manuale);
     setScadenzaId(m.scadenza_id);
     setGiustificativoId(m.giustificativo_id);
+    // Mandati collegati nei due sensi (es. netto del compenso ⇄ relativo F24)
+    const filtro = [`mandato_collegato_id.eq.${m.id}`, m.mandato_collegato_id && `id.eq.${m.mandato_collegato_id}`].filter(Boolean).join(",");
+    const { data: coll, error: errColl } = await supabase.from("gal_mandati").select("id, numero, anno, modalita, stato").or(filtro);
+    if (errColl) console.error(errColl);
+    setCollegati((coll ?? []) as Pick<Mandato, "id" | "numero" | "anno" | "modalita" | "stato">[]);
   }
 
   async function ibanFornitore(fornitoreId: string | null): Promise<string | undefined> {
@@ -293,28 +298,15 @@ export default function MandatoScheda() {
     if (!mid) return;
     const { data: fresco, error: errLettura } = await supabase.from("gal_mandati").select("*").eq("id", mid).single();
     if (errLettura || !fresco) { toast.error(messaggioErrore(errLettura, "Mandato non trovato")); return; }
-    const m = { ...(fresco as Mandato), stato: "verificato" as StatoMandato };
     setBusy(true);
     try {
-      const blob = await generaWord(m, await caricaEnte(gal, imp));
-      const path = `mandati/${m.anno}/${nomeFileMandato(m)}`;
-      const up = await supabase.storage.from(BUCKET_DOCUMENTI).upload(path, blob, { upsert: true, contentType: blob.type });
-      if (up.error) throw up.error;
-      const ok = await cambiaStato("verificato", { docx_path: path, verificato_da: user.nome_completo, verificato_il: new Date().toISOString() }, `Mandato ${numeroStampa(m)} verificato e archiviato`, mid);
-      if (ok && m.giustificativo_id) {
-        // Il Word va tra i documenti del giustificativo (rendicontazione), una sola volta
-        const { data: gia, error: errDoc } = await supabase.from("gal_documenti_giustificativo").select("id")
-          .eq("giustificativo_id", m.giustificativo_id).eq("storage_path", path).limit(1);
-        const { error } = errDoc || gia?.length ? { error: errDoc } : await supabase.from("gal_documenti_giustificativo").insert({
-          gal_id: gal.id, giustificativo_id: m.giustificativo_id, tipo: "mandato_pagamento",
-          nome_file: nomeFileMandato(m), storage_path: path, dimensione: blob.size, note: `Mandato n. ${numeroStampa(m)}`,
-        });
-        if (error) toast.warning("Mandato verificato, ma non collegato ai documenti del giustificativo");
-      }
-      if (ok) {
-        scaricaFile(blob, nomeFileMandato(m));
-        if (nuovo) navigate(`/mandati/${m.id}`, { replace: true });
-      }
+      const { mandato: m, word, avviso } = await archiviaEVerifica(fresco as Mandato, await caricaEnte(gal, imp), user.nome_completo);
+      await logAudit({ galId: gal.id, userId: user.id, username: user.nome_completo, azione: "UPDATE", entita: "mandato", entitaId: m.id, descrizione: `Mandato ${numeroStampa(m)}: ${STATO_MANDATO_LABELS.verificato}` });
+      setMandato(m);
+      toast.success(`Mandato ${numeroStampa(m)} verificato e archiviato`);
+      if (avviso) toast.warning(avviso);
+      scaricaFile(word, nomeFileMandato(m));
+      if (nuovo) navigate(`/mandati/${m.id}`, { replace: true });
     } catch (e) {
       toast.error(messaggioErrore(e, "Word non archiviato: il mandato resta in bozza"));
     } finally {
@@ -624,6 +616,14 @@ export default function MandatoScheda() {
             <h2 id="t-collegamenti" className="font-semibold text-gray-900 flex items-center gap-2"><Link2 size={18} aria-hidden="true" /> Collegamenti</h2>
             {scadenzaId ? <p><Link to={`/scadenzario/${scadenzaId}`} className="text-primary-700 hover:underline">Pagamento nello scadenzario</Link></p> : <p className="text-gray-600">Nessun pagamento dello scadenzario collegato.</p>}
             {giustificativoId ? <p><Link to={`/giustificativi/${giustificativoId}`} className="text-primary-700 hover:underline">Giustificativo di spesa</Link></p> : <p className="text-gray-600">Nessun giustificativo collegato.</p>}
+            {collegati.map((c) => (
+              <p key={c.id}>
+                <Link to={`/mandati/${c.id}`} className="text-primary-700 hover:underline">
+                  {c.modalita === "f24" ? "Mandato F24 collegato" : "Mandato collegato"} n. {numeroStampa(c)}
+                </Link>{" "}
+                <span className="text-gray-600">({STATO_MANDATO_LABELS[c.stato].toLowerCase()})</span>
+              </p>
+            ))}
             {mandato?.docx_path && <p className="text-gray-600">Word archiviato al momento della verifica.</p>}
           </section>
         </div>

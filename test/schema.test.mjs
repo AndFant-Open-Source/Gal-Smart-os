@@ -154,6 +154,14 @@ console.log("Mandati di pagamento");
   ok("il numero di un annullato non si riusa", (await come(oper.id, () => q(nuovo())))[0].numero === m5.numero + 1);
   await come(oper.id, () => db.exec("INSERT INTO gal_scadenze_pagamento (beneficiario, descrizione, data_scadenza, cup, cig, mandato_numero) VALUES ('Verdi','Vecchio mandato a mano','2026-09-01','J12F23000120009','Z222222222',' 40/2026')"));
   ok("numerazione: rispetta i numeri già scritti nello scadenzario", (await come(oper.id, () => q(nuovo())))[0].numero === 41);
+  {
+    const [netto] = await come(oper.id, () => q(nuovo(", tipo_documento", ", 'distinta_compenso'")));
+    const [f24] = await come(oper.id, () => q(nuovo(", modalita, mandato_collegato_id", `, 'f24', '${netto.id}'`)));
+    ok("compenso: F24 collegato al netto con il numero successivo", f24.numero === netto.numero + 1
+       && (await q("SELECT mandato_collegato_id::text c FROM gal_mandati WHERE id=$1", [f24.id]))[0].c === netto.id);
+    await come(admin.id, () => db.exec(`DELETE FROM gal_mandati WHERE id='${netto.id}'`));
+    ok("eliminata la bozza del netto, l'F24 resta senza collegamento", (await q("SELECT mandato_collegato_id FROM gal_mandati WHERE id=$1", [f24.id]))[0].mandato_collegato_id === null);
+  }
   ok("operatore non elimina una bozza", (await come(oper.id, () => q("DELETE FROM gal_mandati WHERE id=$1 RETURNING id", [m1.id]))).length === 0);
   ok("admin elimina una bozza", (await come(admin.id, () => q("DELETE FROM gal_mandati WHERE id=$1 RETURNING id", [m1.id]))).length === 1);
   ok("contatori non scrivibili direttamente", !!(await come(oper.id, () => prova(() => db.exec("UPDATE gal_mandati_contatori SET ultimo_numero=0")))) ||

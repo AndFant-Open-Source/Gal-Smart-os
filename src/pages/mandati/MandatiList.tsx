@@ -5,14 +5,16 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import clsx from "clsx";
-import { Plus, Settings, FileDown, Loader2 } from "lucide-react";
+import { Plus, Settings, FileDown, Loader2, Users, FileArchive, CheckCircle2, X } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { useAuthStore, canWrite } from "../../stores/auth";
 import { useGalStore } from "../../stores/gal";
-import { formatCurrency, formatDate, messaggioErrore } from "../../lib/utils";
+import { formatCurrency, formatDate, logAudit, messaggioErrore } from "../../lib/utils";
 import Table, { Column } from "../../components/ui/Table";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import {
-  STATO_MANDATO_COLORS, STATO_MANDATO_LABELS, caricaEnte, caricaImpostazioni, generaWord, nomeFileMandato, numeroStampa, scaricaFile,
+  STATO_MANDATO_COLORS, STATO_MANDATO_LABELS, archiviaEVerifica, caricaEnte, caricaImpostazioni, generaWord,
+  nomeFileMandato, numeroStampa, scaricaFile, zipWord,
 } from "../../lib/mandati/servizio";
 import type { Mandato, StatoMandato } from "../../types";
 
@@ -28,6 +30,9 @@ export default function MandatiList() {
   const [stato, setStato] = useState<StatoMandato | "">("");
   const [cerca, setCerca] = useState("");
   const [inDownload, setInDownload] = useState<string | null>(null);
+  const [selezionati, setSelezionati] = useState<Set<string>>(new Set());
+  const [avanzamento, setAvanzamento] = useState<{ fatti: number; totale: number; testo: string } | null>(null);
+  const [confermaBlocco, setConfermaBlocco] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -37,6 +42,7 @@ export default function MandatiList() {
     setLoading(false);
     if (error) { toast.error(messaggioErrore(error, "Impossibile caricare i mandati")); return; }
     setMandati((data ?? []) as Mandato[]);
+    setSelezionati(new Set());
   }
 
   useEffect(() => { load(); }, [anno]);
@@ -48,6 +54,13 @@ export default function MandatiList() {
   }, [mandati, stato, cerca]);
 
   const totale = visibili.filter((m) => m.stato !== "annullato").reduce((s, m) => s + Number(m.netto), 0);
+  const scelti = visibili.filter((m) => selezionati.has(m.id));
+  const bozzeScelte = scelti.filter((m) => m.stato === "bozza");
+  const tuttiScelti = visibili.length > 0 && visibili.every((m) => selezionati.has(m.id));
+
+  function seleziona(id: string, si: boolean) {
+    setSelezionati((prev) => { const n = new Set(prev); if (si) n.add(id); else n.delete(id); return n; });
+  }
 
   async function scarica(m: Mandato) {
     if (!gal) return;
@@ -62,7 +75,58 @@ export default function MandatiList() {
     }
   }
 
+  async function scaricaZip() {
+    if (!gal || !scelti.length) return;
+    try {
+      const ente = await caricaEnte(gal, await caricaImpostazioni());
+      const zip = await zipWord(scelti, ente, (f, t) => setAvanzamento({ fatti: f, totale: t, testo: "Preparazione dei Word…" }));
+      scaricaFile(zip, `Mandati_${scelti.length}_${new Date().toISOString().slice(0, 10)}.zip`);
+    } catch (e) {
+      toast.error(messaggioErrore(e, "ZIP non generato"));
+    } finally {
+      setAvanzamento(null);
+    }
+  }
+
+  /** Conferma in blocco delle bozze selezionate (dopo la domanda esplicita all'utente) */
+  async function confermaSelezionati() {
+    setConfermaBlocco(false);
+    if (!gal || !user || !bozzeScelte.length) return;
+    let ok = 0;
+    const ko: string[] = [];
+    try {
+      const ente = await caricaEnte(gal, await caricaImpostazioni());
+      for (let i = 0; i < bozzeScelte.length; i++) {
+        const m = bozzeScelte[i];
+        setAvanzamento({ fatti: i, totale: bozzeScelte.length, testo: `Conferma del mandato n. ${numeroStampa(m)}…` });
+        try {
+          const { avviso } = await archiviaEVerifica(m, ente, user.nome_completo);
+          if (avviso) ko.push(`${numeroStampa(m)}: ${avviso}`);
+          ok++;
+        } catch (e) {
+          ko.push(`${numeroStampa(m)}: ${messaggioErrore(e, "non confermato")}`);
+        }
+      }
+    } catch (e) {
+      toast.error(messaggioErrore(e, "Conferma non eseguita"));
+    }
+    setAvanzamento(null);
+    if (ok) {
+      await logAudit({ galId: gal.id, userId: user.id, username: user.nome_completo, azione: "UPDATE", entita: "mandato", descrizione: `Confermati in blocco ${ok} mandati` });
+      toast.success(`${ok} mandati confermati e archiviati`);
+    }
+    if (ko.length) toast.error(ko.join(" · "));
+    load();
+  }
+
   const columns: Column<Mandato>[] = [
+    {
+      key: "sel", label: "Selezione", width: "w-10",
+      render: (m) => (
+        <input type="checkbox" className="h-4 w-4" checked={selezionati.has(m.id)} aria-label={`Seleziona il mandato ${numeroStampa(m)}`}
+          onClick={(e) => e.stopPropagation()} onChange={(e) => seleziona(m.id, e.target.checked)} />
+      ),
+    },
     {
       key: "numero", label: "N.", width: "w-24",
       render: (m) => <Link to={`/mandati/${m.id}`} className="font-semibold text-primary-700 hover:underline" onClick={(e) => e.stopPropagation()}>{numeroStampa(m)}</Link>,
@@ -102,6 +166,7 @@ export default function MandatiList() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <Link to="/mandati/impostazioni" className="btn-secondary"><Settings size={16} aria-hidden="true" /> Impostazioni</Link>
+          {write && <Link to="/mandati/compensi" className="btn-secondary"><Users size={16} aria-hidden="true" /> Compensi e gettoni</Link>}
           {write && <button className="btn-primary" onClick={() => navigate("/mandati/nuovo")}><Plus size={16} aria-hidden="true" /> Nuovo mandato</button>}
         </div>
       </div>
@@ -128,11 +193,50 @@ export default function MandatiList() {
         <p className="text-sm text-gray-700 pb-2" aria-live="polite">{visibili.length} mandati · totale {formatCurrency(totale)}</p>
       </div>
 
+      {/* Azioni sui mandati selezionati */}
+      <div className="flex items-center gap-2 flex-wrap text-sm">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" className="h-4 w-4" checked={tuttiScelti} disabled={!visibili.length}
+            onChange={(e) => setSelezionati(e.target.checked ? new Set(visibili.map((m) => m.id)) : new Set())} />
+          Seleziona tutti quelli in elenco
+        </label>
+        {scelti.length > 0 && (
+          <>
+            <span className="text-gray-700" aria-live="polite">· {scelti.length} selezionati</span>
+            <button className="btn-secondary text-sm" onClick={scaricaZip} disabled={!!avanzamento}><FileArchive size={15} aria-hidden="true" /> Scarica Word (ZIP)</button>
+            {write && bozzeScelte.length > 0 && (
+              <button className="btn-primary text-sm" onClick={() => setConfermaBlocco(true)} disabled={!!avanzamento}>
+                <CheckCircle2 size={15} aria-hidden="true" /> Conferma {bozzeScelte.length} bozze
+              </button>
+            )}
+            <button className="btn-ghost text-sm" onClick={() => setSelezionati(new Set())}><X size={15} aria-hidden="true" /> Deseleziona</button>
+          </>
+        )}
+      </div>
+
+      {avanzamento && (
+        <div className="card p-3 space-y-2" role="status" aria-live="polite">
+          <p className="text-sm text-gray-800 flex items-center gap-2"><Loader2 size={16} className="animate-spin" aria-hidden="true" /> {avanzamento.testo} ({avanzamento.fatti}/{avanzamento.totale})</p>
+          <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden" role="progressbar" aria-label="Avanzamento" aria-valuemin={0} aria-valuemax={avanzamento.totale} aria-valuenow={avanzamento.fatti}>
+            <div className="h-full bg-primary-500" style={{ width: `${avanzamento.totale ? (avanzamento.fatti / avanzamento.totale) * 100 : 0}%` }} />
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <Table data={visibili} columns={columns} keyField="id" isLoading={loading}
-          emptyMessage="Nessun mandato. Crealo da una riga dello Scadenzario pagamenti, da un giustificativo o con «Nuovo mandato»."
+          emptyMessage="Nessun mandato. Crealo da una riga dello Scadenzario pagamenti, da un giustificativo, da «Compensi e gettoni» o con «Nuovo mandato»."
           onRowClick={(m) => navigate(`/mandati/${m.id}`)} />
       </div>
+
+      <ConfirmDialog
+        open={confermaBlocco}
+        title={`Confermare ${bozzeScelte.length} mandati?`}
+        message={`Confermi di aver controllato beneficiari, IBAN, importi e causali di tutti i ${bozzeScelte.length} mandati in bozza selezionati (${bozzeScelte.map(numeroStampa).join(", ")})? Perdono la scritta BOZZA e vengono archiviati. Le note "da verificare" rimaste verranno stampate in rosso.`}
+        confirmLabel="Sì, confermo"
+        onConfirm={confermaSelezionati}
+        onCancel={() => setConfermaBlocco(false)}
+      />
     </div>
   );
 }
