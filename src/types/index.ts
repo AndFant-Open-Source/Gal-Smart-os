@@ -53,6 +53,45 @@ export interface Bando {
   num_domande?: number;
 }
 
+export type StatoSchemaBando = "in_corso" | "pubblicato" | "sospeso" | "annullato";
+export type StatoFaseSchema = "da_fare" | "in_corso" | "completata" | "non_applicabile";
+
+export interface SchemaBando {
+  id: string;
+  gal_id: string;
+  intervento: string;
+  sottointervento: string | null;
+  azione: string | null;
+  titolo: string;
+  descrizione: string | null;
+  dotazione_finanziaria: number;
+  de_minimis: boolean;
+  stato: StatoSchemaBando;
+  bando_id: string | null;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FaseSchemaBando {
+  id: string;
+  gal_id: string;
+  schema_id: string;
+  numero: number;
+  titolo: string;
+  soggetto: string | null;
+  canale: string | null;
+  stato: StatoFaseSchema;
+  data_avvio: string | null;
+  data_completamento: string | null;
+  riferimento: string | null;
+  note: string | null;
+  completata_da: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type StatoDomanda =
   | "presentata"
   | "istruttoria"
@@ -626,6 +665,53 @@ export interface MovimentoCassa {
   conto_id: string | null;
   riferimento: string | null;
   note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── Mandati di pagamento ────────────────────────────────────────
+export type StatoMandato = "bozza" | "verificato" | "firmato" | "pagato" | "annullato";
+
+export interface ImpostazioniMandati {
+  id: string;
+  gal_id: string;
+  iban_addebito: string | null;
+  banca_tesoriere: string | null;
+  pratica: string | null;
+  operazione: string | null;
+  misura: string | null;
+  cup: string | null;
+  firma_sinistra: string | null;
+  firma_destra: string | null;
+  logo_path: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Mandato {
+  id: string;
+  gal_id: string;
+  anno: number;
+  numero: number;
+  numero_manuale: boolean;
+  data_ordine: string;
+  stato: StatoMandato;
+  tipo_documento: string;
+  modalita: "bonifico" | "f24";
+  scheda: import("../lib/mandati/tipi").SchedaMandato;
+  netto: number;
+  beneficiario_nome: string;
+  beneficiario_piva: string | null;
+  beneficiario_iban: string | null;
+  numero_documento: string | null;
+  cup: string | null;
+  scadenza_id: string | null;
+  giustificativo_id: string | null;
+  mandato_collegato_id: string | null;
+  docx_path: string | null;
+  verificato_da: string | null;
+  verificato_il: string | null;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }

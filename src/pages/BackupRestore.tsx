@@ -22,6 +22,8 @@ const GAL_TABLES = [
   "gal_bandi",
   "gal_domande_sostegno",
   "gal_pagamenti_bando",
+  "gal_schemi_bando",
+  "gal_schemi_bando_fasi",
   "gal_soci",
   "gal_quote_sociali",
   "gal_organi",
@@ -48,6 +50,9 @@ const GAL_TABLES = [
   "gal_conti",
   "gal_scadenze_pagamento",
   "gal_movimenti_cassa",
+  "gal_mandati_impostazioni",
+  "gal_mandati_contatori",
+  "gal_mandati",
   "gal_audit",
 ];
 
@@ -393,6 +398,7 @@ export default function BackupRestore() {
       const orderedTables = [
         "gal_gal", "gal_profili",
         "gal_bandi", "gal_domande_sostegno", "gal_pagamenti_bando",
+        "gal_schemi_bando", "gal_schemi_bando_fasi",
         "gal_soci", "gal_quote_sociali",
         "gal_organi", "gal_componenti", "gal_sedute", "gal_delibere",
         "gal_fornitori",
@@ -403,6 +409,7 @@ export default function BackupRestore() {
         "gal_fascicoli",
         "gal_agenda_pratiche", "gal_agenda_checklist", "gal_agenda_note",
         "gal_conti", "gal_scadenze_pagamento", "gal_movimenti_cassa",
+        "gal_mandati_impostazioni", "gal_mandati_contatori", "gal_mandati",
         "gal_audit",
       ];
 
@@ -462,6 +469,30 @@ export default function BackupRestore() {
           if (table === "gal_scadenze_pagamento") {
             // Prima i pagamenti di origine, poi gli F24 che li richiamano
             righe.sort((a, b) => Number(!!a.scadenza_origine_id) - Number(!!b.scadenza_origine_id));
+          }
+
+          if (table === "gal_mandati_contatori") {
+            // Si ricalcolano da soli ripristinando i mandati (numerazione automatica)
+            addLog("info", "Numerazione mandati: ricalcolata dai mandati ripristinati");
+            continue;
+          }
+
+          if (table === "gal_mandati_impostazioni") {
+            // Riga unica: si aggiornano i dati di quella di questa installazione
+            const { id: _id, gal_id: _g, created_at: _c, updated_at: _u, ...campi } = righe[0];
+            const { error } = await supabase.from("gal_mandati_impostazioni").update(campi).eq("gal_id", targetGalId);
+            addLog(error ? "warn" : "success", error ? `Impostazioni mandati: ${messaggioErrore(error)}` : "Impostazioni mandati aggiornate");
+            continue;
+          }
+
+          if (table === "gal_mandati") {
+            // Nei CSV la scheda del mandato è testo JSON; i mandati collegati (F24) dopo quelli di origine
+            for (const r of righe) {
+              if (typeof r.scheda === "string") {
+                try { r.scheda = JSON.parse(r.scheda); } catch { /* resta testo: il database la rifiuterà con un avviso */ }
+              }
+            }
+            righe.sort((a, b) => Number(!!a.mandato_collegato_id) - Number(!!b.mandato_collegato_id));
           }
 
           let ok = 0;

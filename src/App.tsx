@@ -20,6 +20,8 @@ const BandiList = lazy(() => import("./pages/bandi/BandiList"));
 const BandoDetail = lazy(() => import("./pages/bandi/BandoDetail"));
 const DomandeList = lazy(() => import("./pages/bandi/DomandeList"));
 const DomandaDetail = lazy(() => import("./pages/bandi/DomandaDetail"));
+const SchemiBandoList = lazy(() => import("./pages/bandi/SchemiBandoList"));
+const SchemaBandoDetail = lazy(() => import("./pages/bandi/SchemaBandoDetail"));
 
 // Organi sociali
 const SociList = lazy(() => import("./pages/organi-sociali/SociList"));
@@ -55,6 +57,9 @@ const AgendaPage = lazy(() => import("./pages/agenda/AgendaPage"));
 const PraticaDetail = lazy(() => import("./pages/agenda/PraticaDetail"));
 const ScadenzarioPage = lazy(() => import("./pages/scadenzario/ScadenzarioPage"));
 const ScadenzaDetail = lazy(() => import("./pages/scadenzario/ScadenzaDetail"));
+const MandatiList = lazy(() => import("./pages/mandati/MandatiList"));
+const MandatoScheda = lazy(() => import("./pages/mandati/MandatoScheda"));
+const ImpostazioniMandati = lazy(() => import("./pages/mandati/ImpostazioniMandati"));
 const CashFlowPage = lazy(() => import("./pages/cashflow/CashFlowPage"));
 const EsportaExcel = lazy(() => import("./pages/EsportaExcel"));
 
@@ -126,6 +131,8 @@ export default function App() {
                       <Route path="/" element={<Dashboard />} />
 
                       {/* Bandi */}
+                      <Route path="/schemi-bando" element={<SchemiBandoList />} />
+                      <Route path="/schemi-bando/:id" element={<SchemaBandoDetail />} />
                       <Route path="/bandi" element={<BandiList />} />
                       <Route path="/bandi/:id" element={<BandoDetail />} />
                       <Route path="/bandi/:bandoId/domande" element={<DomandeList />} />
@@ -168,6 +175,10 @@ export default function App() {
                       {/* Scadenzario pagamenti, cash flow, esportazione */}
                       <Route path="/scadenzario" element={<ScadenzarioPage />} />
                       <Route path="/scadenzario/:id" element={<ScadenzaDetail />} />
+                      <Route path="/mandati" element={<MandatiList />} />
+                      <Route path="/mandati/nuovo" element={<MandatoScheda />} />
+                      <Route path="/mandati/impostazioni" element={<ImpostazioniMandati />} />
+                      <Route path="/mandati/:id" element={<MandatoScheda />} />
                       <Route path="/cash-flow" element={<CashFlowPage />} />
                       <Route path="/esporta-excel" element={<EsportaExcel />} />
 

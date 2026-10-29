@@ -48,12 +48,20 @@ export default function BandoDetail() {
   const [showNuovaDomanda, setShowNuovaDomanda] = useState(false);
   const [formDomanda, setFormDomanda] = useState(FORM_DOM_INIT);
   const [savingDomanda, setSavingDomanda] = useState(false);
+  const [schema, setSchema] = useState<{ id: string; titolo: string } | null>(null);
 
   async function loadBando() {
     if (!id) return;
     const { data } = await supabase.from("gal_bandi").select("*").eq("id", id).single();
     if (data) { setBando(data as Bando); setForm(data as Bando); }
     setLoading(false);
+  }
+
+  async function loadSchema() {
+    if (!id) return;
+    const { data, error } = await supabase.from("gal_schemi_bando").select("id, titolo").eq("bando_id", id).limit(1).maybeSingle();
+    if (error) { console.error(error); return; }
+    setSchema(data as { id: string; titolo: string } | null);
   }
 
   async function loadDomande() {
@@ -63,7 +71,7 @@ export default function BandoDetail() {
     setDomande((data ?? []) as DomandaSostegno[]);
   }
 
-  useEffect(() => { loadBando(); loadDomande(); }, [id]);
+  useEffect(() => { loadBando(); loadDomande(); loadSchema(); }, [id]);
 
   async function handleSave() {
     if (!id || !user || !currentGal) return;
@@ -120,6 +128,11 @@ export default function BandoDetail() {
         <div className="flex-1">
           <h1 className="text-xl font-bold">Bando {bando.numero}</h1>
           <p className="text-sm text-gray-500">{bando.tipologia_operazione}</p>
+          {schema && (
+            <p className="text-sm text-gray-600">
+              Iter di approvazione: <Link to={`/schemi-bando/${schema.id}`} className="text-primary-700 hover:underline">{schema.titolo}</Link>
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           {write && !editing && <button className="btn-secondary" onClick={() => setEditing(true)}><Edit size={16} /> Modifica</button>}

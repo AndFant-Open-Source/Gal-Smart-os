@@ -56,9 +56,16 @@ export default function ScadenzaDetail() {
   const [contabile, setContabile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<"annulla" | "elimina" | "ripristina" | null>(null);
+  const [mandatoCollegato, setMandatoCollegato] = useState<{ id: string; numero: number; anno: number } | null>(null);
 
   async function load() {
     if (!id) return;
+    supabase.from("gal_mandati").select("id, numero, anno").eq("scadenza_id", id).neq("stato", "annullato")
+      .order("created_at", { ascending: false }).limit(1).maybeSingle()
+      .then(({ data, error }) => {
+        if (error) console.error(error); // database senza il modulo mandati: nessun collegamento
+        setMandatoCollegato((data ?? null) as { id: string; numero: number; anno: number } | null);
+      });
     const { data, error } = await supabase.from("gal_scadenze_pagamento").select("*").eq("id", id).single();
     if (error || !data) {
       console.error(error);
@@ -304,6 +311,9 @@ export default function ScadenzaDetail() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
+          {mandatoCollegato
+            ? <Link to={`/mandati/${mandatoCollegato.id}`} className="btn-secondary"><FileText size={16} aria-hidden="true" /> Mandato n. {mandatoCollegato.numero}/{mandatoCollegato.anno}</Link>
+            : write && sc.stato !== "annullata" && <Link to={`/mandati/nuovo?scadenza=${sc.id}`} className="btn-primary"><FileText size={16} aria-hidden="true" /> Crea mandato</Link>}
           <button className={clsx(sc.stato === "pagata" ? "btn-primary" : "btn-secondary")} onClick={scaricaScheda} disabled={sc.stato !== "pagata"}
             title={sc.stato !== "pagata" ? "Disponibile dopo la registrazione del pagamento" : "Scarica la scheda per il mandato di pagamento"}>
             <FileDown size={16} /> Scheda mandato

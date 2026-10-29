@@ -23,13 +23,13 @@ Row Level Security attiva.
 | Area | Tabelle |
 |------|---------|
 | Ente e persone | `gal_gal` (una riga), `gal_profili`, `gal_audit` (registro attività) |
-| Bandi | `gal_bandi`, `gal_domande_sostegno`, `gal_pagamenti_bando` |
+| Bandi | `gal_schemi_bando`, `gal_schemi_bando_fasi` (iter Regione in 9 passaggi), `gal_bandi`, `gal_domande_sostegno`, `gal_pagamenti_bando` |
 | Organi sociali | `gal_soci`, `gal_quote_sociali`, `gal_organi`, `gal_componenti`, `gal_sedute`, `gal_delibere` |
 | Rendicontazione | `gal_fornitori`, `gal_periodi_ses`, `gal_interventi`, `gal_tipologie_spesa`, `gal_capitoli`, `gal_voci_previsione`, `gal_giustificativi`, `gal_pagamenti_giust`, `gal_righe_imputazione`, `gal_documenti_giustificativo` |
 | Acquisti | `gal_procedure`, `gal_procedure_invitati`, `gal_contratti` |
 | Archivio | `gal_fascicoli` (registro di catalogazione) |
 | Agenda | `gal_agenda_pratiche`, `gal_agenda_checklist`, `gal_agenda_note` |
-| Pagamenti e cassa | `gal_conti`, `gal_scadenze_pagamento`, `gal_movimenti_cassa` |
+| Pagamenti e cassa | `gal_conti`, `gal_scadenze_pagamento`, `gal_movimenti_cassa`, `gal_mandati`, `gal_mandati_impostazioni`, `gal_mandati_contatori` |
 
 ## Permessi
 

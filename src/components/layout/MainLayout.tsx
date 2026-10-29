@@ -31,6 +31,7 @@ const navItems: NavItem[] = [
     module: "pagamenti",
     children: [
       { label: "Scadenzario pagamenti", path: "/scadenzario" },
+      { label: "Mandati di pagamento", path: "/mandati" },
       { label: "Cash flow", path: "/cash-flow" },
     ],
   },
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
     icon: <ScrollText size={18} />,
     module: "bandi",
     children: [
+      { label: "Schemi di bando", path: "/schemi-bando" },
       { label: "Bandi attivi", path: "/bandi" },
       { label: "Domande di sostegno", path: "/domande" },
     ],

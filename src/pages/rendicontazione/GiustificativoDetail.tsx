@@ -381,6 +381,7 @@ export default function GiustificativoDetail() {
         <span className={`badge ${STATO_COLORS[giust.stato] ?? "bg-gray-100"}`}>{giust.stato.replace(/_/g, " ")}</span>
         {write && giust.stato !== "annullata" && (
           <>
+            <Link to={`/mandati/nuovo?giustificativo=${giust.id}`} className="btn-primary flex items-center gap-1"><FileText size={15} aria-hidden="true" /> Crea mandato</Link>
             <button className="btn-secondary flex items-center gap-1" onClick={openEditModal}><Edit2 size={15} /> Modifica</button>
             <button className="btn-danger flex items-center gap-1" onClick={() => setAnnullaConfirm(true)}><Ban size={15} /> Annulla</button>
           </>

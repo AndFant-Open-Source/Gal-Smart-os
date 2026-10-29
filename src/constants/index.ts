@@ -4,7 +4,80 @@
 import type {
   Funzione, PrioritaPratica, StatoPratica, Ricorrenza,
   TipoScadenzaPagamento, StatoScadenzaPagamento, ModalitaPagamento, TipoConto,
+  StatoSchemaBando, StatoFaseSchema,
 } from "../types";
+
+// ─── Schemi di bando (iter Regione Lazio) ────────────────────────
+export const STATO_SCHEMA_LABELS: Record<StatoSchemaBando, string> = {
+  in_corso: "In corso",
+  pubblicato: "Pubblicato",
+  sospeso: "Sospeso",
+  annullato: "Annullato",
+};
+
+export const STATO_SCHEMA_COLORS: Record<StatoSchemaBando, string> = {
+  in_corso: "bg-blue-100 text-blue-800",
+  pubblicato: "bg-green-100 text-green-800",
+  sospeso: "bg-yellow-100 text-yellow-800",
+  annullato: "bg-gray-200 text-gray-700",
+};
+
+export const STATO_FASE_LABELS: Record<StatoFaseSchema, string> = {
+  da_fare: "Da fare",
+  in_corso: "In corso",
+  completata: "Completato",
+  non_applicabile: "Non applicabile",
+};
+
+export const STATO_FASE_COLORS: Record<StatoFaseSchema, string> = {
+  da_fare: "bg-gray-100 text-gray-700",
+  in_corso: "bg-blue-100 text-blue-800",
+  completata: "bg-green-100 text-green-800",
+  non_applicabile: "bg-gray-50 text-gray-500 border border-dashed border-gray-300",
+};
+
+/**
+ * Guida di ogni passaggio (flusso operativo Regione Lazio, SRG06 – Sottointervento A).
+ * "riferimento" è l'etichetta del campo in cui annotare gli estremi del documento.
+ */
+export const GUIDA_FASI_SCHEMA: Record<number, { cosa: string; riferimento: string }> = {
+  1: {
+    cosa: "Il GAL predispone la bozza del bando e la invia per e-mail ai referenti regionali, chiedendo osservazioni e indicazioni per arrivare a una versione condivisa.",
+    riferimento: "Data e oggetto dell'e-mail / versione della bozza",
+  },
+  2: {
+    cosa: "Il Direttore Tecnico predispone la profilatura VECI per l'intervento/azione e chiede alla Regione, per e-mail, la validazione a sistema indicando nell'oggetto intervento e azione.",
+    riferimento: "Oggetto dell'e-mail di richiesta validazione",
+  },
+  3: {
+    cosa: "Il CdA del GAL approva formalmente lo schema condiviso con la Regione. Schema e verbale del CdA vengono inviati alla Regione via PEC.",
+    riferimento: "N. e data della delibera CdA / protocollo PEC",
+  },
+  4: {
+    cosa: "Acquisita la delibera del CdA, la Regione emana l'atto amministrativo che approva e valida ufficialmente lo schema di bando.",
+    riferimento: "N. e data dell'atto regionale (determinazione)",
+  },
+  5: {
+    cosa: "Recepito l'atto regionale, il CdA approva il bando definitivo, perfettamente conforme allo schema validato. Il bando approvato va poi gestito in «Bandi attivi».",
+    riferimento: "N. e data della delibera CdA di approvazione definitiva",
+  },
+  6: {
+    cosa: "Il Direttore Tecnico inserisce i parametri del bando definitivo sul portale SIAN e comunica per e-mail ai referenti regionali l'avvenuta profilazione, chiedendo la convalida.",
+    riferimento: "Codice/ID del bando sul SIAN e data dell'e-mail",
+  },
+  7: {
+    cosa: "Ricevuta la comunicazione, la Regione effettua sul portale SIAN la convalida definitiva del bando inserito dal GAL.",
+    riferimento: "Data della convalida SIAN",
+  },
+  8: {
+    cosa: "Dopo la convalida regionale, il GAL (Presidente, DT e Segreteria) pubblica il bando approvato sui propri siti istituzionali.",
+    riferimento: "Indirizzo della pagina di pubblicazione",
+  },
+  9: {
+    cosa: "Solo se i contributi sono concessi in regime de minimis: il DT trasmette per e-mail alla Regione modulistica e informazioni per registrare la misura nel Registro Nazionale Aiuti.",
+    riferimento: "Codice misura RNA (CAR) / data dell'e-mail",
+  },
+};
 
 // ─── Agenda ──────────────────────────────────────────────────────
 export const FUNZIONI: Funzione[] = ["segreteria", "direttore_tecnico", "raf"];

@@ -114,8 +114,15 @@ export async function apriAllegato(path: string): Promise<void> {
   window.open(data.signedUrl, "_blank", "noopener");
 }
 
-/** Propone il prossimo numero di mandato dell'anno (es. "12/2026") */
+/**
+ * Propone il prossimo numero di mandato dell'anno (es. "12/2026"): lo stesso della
+ * numerazione automatica dei Mandati di pagamento, che considera anche i numeri
+ * già scritti nello scadenzario.
+ */
 export async function prossimoNumeroMandato(galId: string, anno: number): Promise<string> {
+  const proposto = await supabase.rpc("gal_mandati_numero_proposto", { p_anno: anno });
+  if (!proposto.error && typeof proposto.data === "number") return `${proposto.data}/${anno}`;
+  // Database non ancora aggiornato con il modulo mandati: calcolo dai soli numeri dello scadenzario
   const { data, error } = await supabase
     .from("gal_scadenze_pagamento")
     .select("mandato_numero")

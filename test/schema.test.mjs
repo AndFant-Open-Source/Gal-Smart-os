@@ -105,6 +105,61 @@ ok("CUP vuoto rifiutato", !!(await come(oper.id, () => prova(() => db.exec("INSE
 await come(oper.id, () => db.exec("UPDATE gal_scadenze_pagamento SET mandato_numero='1/2026' WHERE cig='B1234ABCD5'"));
 ok("numero di mandato non duplicabile", !!(await come(oper.id, () => prova(() => db.exec("UPDATE gal_scadenze_pagamento SET mandato_numero='1/2026' WHERE cig_esente")))));
 
+console.log("Schemi di bando");
+{
+  const crea = (dm) => `SELECT gal_crea_schema_bando('Schema SRG06 A1', 'SRG06', 'A', 'A1', NULL, 100000, ${dm}) AS id`;
+  const [s] = await come(oper.id, () => q(crea("false")));
+  const fasi = await come(oper.id, () => q("SELECT numero, stato FROM gal_schemi_bando_fasi WHERE schema_id=$1 ORDER BY numero", [s.id]));
+  ok("schema creato con i 9 passaggi", fasi.length === 9 && fasi[0].numero === 1, fasi.length);
+  ok("RNA non applicabile senza de minimis", fasi[8].stato === "non_applicabile", fasi[8]);
+  const [s2] = await come(oper.id, () => q(crea("true")));
+  ok("RNA da fare con de minimis", (await q("SELECT stato FROM gal_schemi_bando_fasi WHERE schema_id=$1 AND numero=9", [s2.id]))[0].stato === "da_fare");
+  ok("passaggio duplicato rifiutato", !!(await come(oper.id, () => prova(() => db.exec(`INSERT INTO gal_schemi_bando_fasi (schema_id, numero, titolo) VALUES ('${s.id}', 3, 'Doppio')`)))));
+  ok("account non attivo non crea schemi", !!(await come(estraneo.id, () => prova(() => q(crea("false"))))));
+  ok("operatore non elimina uno schema", (await come(oper.id, () => q("DELETE FROM gal_schemi_bando WHERE id=$1 RETURNING id", [s2.id]))).length === 0);
+  ok("admin elimina uno schema con i suoi passaggi", (await come(admin.id, () => q("DELETE FROM gal_schemi_bando WHERE id=$1 RETURNING id", [s2.id]))).length === 1
+     && (await q("SELECT count(*)::int n FROM gal_schemi_bando_fasi WHERE schema_id=$1", [s2.id]))[0].n === 0);
+}
+
+console.log("Mandati di pagamento");
+{
+  const scheda = `'{"voci":[],"note":[]}'::jsonb`;
+  const nuovo = (extra = "", valori = "") =>
+    `INSERT INTO gal_mandati (data_ordine, scheda, netto, beneficiario_nome ${extra}) VALUES ('2026-10-29', ${scheda}, 100, 'Rossi' ${valori}) RETURNING id, numero, anno`;
+  ok("impostazioni: una riga già pronta", (await q("SELECT count(*)::int n FROM gal_mandati_impostazioni"))[0].n === 1);
+  ok("impostazioni: l'operatore non le modifica", (await come(oper.id, () => q("UPDATE gal_mandati_impostazioni SET iban_addebito='X' RETURNING id"))).length === 0);
+  ok("impostazioni: l'admin le modifica", (await come(admin.id, () => q("UPDATE gal_mandati_impostazioni SET firma_destra='Il RAF (Prova)' RETURNING id"))).length === 1);
+  ok("ripartenza numerazione negata all'operatore", !!(await come(oper.id, () => prova(() => q("SELECT gal_mandati_imposta_ultimo_numero(2026, 11)")))));
+  ok("admin: ultimo mandato emesso a mano = 11", (await come(admin.id, () => q("SELECT gal_mandati_imposta_ultimo_numero(2026, 11) n")))[0].n === 12);
+  ok("numero proposto 12", (await come(oper.id, () => q("SELECT gal_mandati_numero_proposto(2026) n")))[0].n === 12);
+  const [m1] = await come(oper.id, () => q(nuovo()));
+  const [m2] = await come(oper.id, () => q(nuovo()));
+  ok("numerazione automatica 12/2026 e 13/2026", m1.numero === 12 && m2.numero === 13 && m1.anno === 2026, [m1.numero, m2.numero]);
+  ok("numero scelto a mano già usato rifiutato", !!(await come(oper.id, () => prova(() => q(nuovo(", numero, numero_manuale", ", 13, true"))))));
+  const [m3] = await come(oper.id, () => q(nuovo(", numero, numero_manuale", ", 20, true")));
+  const [m4] = await come(oper.id, () => q(nuovo()));
+  ok("dopo un numero a mano (20) si riparte da 21", m3.numero === 20 && m4.numero === 21, [m3.numero, m4.numero]);
+  ok("nuovo anno riparte da 1", (await come(oper.id, () => q(nuovo(", anno", ", 2027"))))[0].numero === 1);
+  ok("ripartenza sotto un numero già usato rifiutata", !!(await come(admin.id, () => prova(() => q("SELECT gal_mandati_imposta_ultimo_numero(2026, 5)")))));
+
+  const [sc] = await come(oper.id, () => q("INSERT INTO gal_scadenze_pagamento (beneficiario, descrizione, data_scadenza, cup, cig) VALUES ('Bianchi','Servizio','2026-12-01','J12F23000120009','Z111111111') RETURNING id"));
+  const [m5] = await come(oper.id, () => q(nuovo(", scadenza_id", `, '${sc.id}'`)));
+  const scad = async () => (await q("SELECT mandato_numero, mandato_data::text d FROM gal_scadenze_pagamento WHERE id=$1", [sc.id]))[0];
+  ok("numero e data riportati nello scadenzario", (await scad()).mandato_numero === `${m5.numero}/2026` && (await scad()).d === "2026-10-29", await scad());
+  await come(oper.id, () => db.exec(`UPDATE gal_mandati SET stato='verificato' WHERE id='${m5.id}'`));
+  ok("mandato verificato non eliminabile (nemmeno dall'admin)", !!(await come(admin.id, () => prova(() => db.exec(`DELETE FROM gal_mandati WHERE id='${m5.id}'`)))));
+  await come(oper.id, () => db.exec(`UPDATE gal_mandati SET stato='annullato' WHERE id='${m5.id}'`));
+  ok("annullato: tiene il numero e libera lo scadenzario", (await scad()).mandato_numero === null
+     && (await q("SELECT numero FROM gal_mandati WHERE id=$1", [m5.id]))[0].numero === m5.numero);
+  ok("il numero di un annullato non si riusa", (await come(oper.id, () => q(nuovo())))[0].numero === m5.numero + 1);
+  await come(oper.id, () => db.exec("INSERT INTO gal_scadenze_pagamento (beneficiario, descrizione, data_scadenza, cup, cig, mandato_numero) VALUES ('Verdi','Vecchio mandato a mano','2026-09-01','J12F23000120009','Z222222222',' 40/2026')"));
+  ok("numerazione: rispetta i numeri già scritti nello scadenzario", (await come(oper.id, () => q(nuovo())))[0].numero === 41);
+  ok("operatore non elimina una bozza", (await come(oper.id, () => q("DELETE FROM gal_mandati WHERE id=$1 RETURNING id", [m1.id]))).length === 0);
+  ok("admin elimina una bozza", (await come(admin.id, () => q("DELETE FROM gal_mandati WHERE id=$1 RETURNING id", [m1.id]))).length === 1);
+  ok("contatori non scrivibili direttamente", !!(await come(oper.id, () => prova(() => db.exec("UPDATE gal_mandati_contatori SET ultimo_numero=0")))) ||
+     (await q("SELECT ultimo_numero FROM gal_mandati_contatori WHERE anno=2026"))[0].ultimo_numero > 0);
+}
+
 console.log("Agenda e archivio");
 const [pr] = await come(oper.id, () => q("INSERT INTO gal_agenda_pratiche (titolo, responsabile, data_scadenza) VALUES ('CdA','segreteria','2026-11-10') RETURNING id, created_by"));
 ok("pratica con autore automatico", pr.created_by === oper.id);

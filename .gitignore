@@ -31,6 +31,9 @@ desktop.ini
 *.zip
 *.xlsx
 
+# Kit dei mandati: contiene mandati, fatture e compensi reali (dati personali)
+docs/mandati/
+
 # File locali della CLI di Supabase
 supabase/.temp/
 
